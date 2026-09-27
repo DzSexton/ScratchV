@@ -1,4 +1,4 @@
-> 历史归档：保留 PR #48 的课题材料，不代表当前全部实现状态。当前接口、范围和用法以 [PassManager 设计文档](Topic04-PassManager-设计文档.md) 为准。
+> 历史归档：保留 PR #48 的课题材料，不代表当前全部实现状态。当前接口、范围和用法以 [PassManager 设计文档](docs/topics/04%20IR优化器/Topic04-PassManager-设计文档.md) 为准。
 
 # Topic: IR 优化器框架 (Optimizer Framework)
 

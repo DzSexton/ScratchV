@@ -5,7 +5,7 @@
 本实现承接 [PR #48](https://github.com/ScratchV-Compiler/ScratchV/pull/48)，
 并合入上游主分支 `11a2c3c`（2026-09-26），新 PR 以主分支为合并目标。
 保留 #48 的统一优化接口、逐 Pass 计数、耗时和失败即停语义。
-本次设计和历史课题材料按导师要求归档在 ScratchV 仓库根目录。
+当前设计文档归档在 `docs/topics/04 IR优化器/`；验证记录及 #48 历史课题材料保留在仓库根目录。
 
 检查范围覆盖仓库目录、#48 之后的提交历史，以及前端、IR/CFG、优化器、
 编译驱动、后端、CLI、示例、benchmark、测试和 CI 的调用关系。
@@ -14,7 +14,7 @@
 
 | 导师建议 | 本次实现 |
 | --- | --- |
-| 设计文档归档到根目录 | 本文、两份 #48 历史文档及 README/文档索引入口 |
+| 设计文档归档 | 本文位于 Topic 04 目录，根目录保留验证记录及两份 #48 历史文档，并提供 README/文档索引入口 |
 | 把已有常量折叠纳入 PM | 复用 `ConstantFolder`；保留 basic/all 默认调度，增加独立选择与禁用 |
 | 简单 if 控制 Pass | 调度前用 `if`，或 `register(pass_, enabled=flag)` |
 | 通过注册管理 Pass | `PassRegistry` 保存名称与工厂，`build` 按显式顺序构建管线 |
@@ -132,9 +132,9 @@ Python 配置对应 `CompilerConfig.passes`、`disabled_passes`；默认值保�
 真实 IR 折叠开关、默认预设、显式空管线、顺序和重复、工厂隔离与懒构造、
 未知名称、功能性数据传递、只读分析、错误停止及输出文件保护。
 集成验证覆盖既有优化器、编译驱动、汇编适配和 benchmark 调用。
-完整命令、结果和平台限制见 [验证记录](Topic04-PassManager-验证记录.md)。
+完整命令、结果和平台限制见 [验证记录](../../../Topic04-PassManager-验证记录.md)。
 
-- [#48 课题说明历史归档](Topic04-IR优化器框架-历史归档.md)
-- [#48 优化器框架历史归档](Topic04-Optimizer-Framework-历史归档.md)
+- [#48 课题说明历史归档](../../../Topic04-IR优化器框架-历史归档.md)
+- [#48 优化器框架历史归档](../../../Topic04-Optimizer-Framework-历史归档.md)
 
 历史材料原有的阶段目标和示例用于追溯，不作为当前功能完成度的断言。

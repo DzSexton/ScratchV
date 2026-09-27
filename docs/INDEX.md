@@ -60,4 +60,4 @@
 >
 > 🐛 **遇到问题？** 先查 [04-故障排除FAQ](guide/04-故障排除FAQ.md)。
 
-- [Topic 04 PassManager：根目录设计文档与历史归档](../Topic04-PassManager-设计文档.md)
+- [Topic 04 PassManager：设计文档与历史归档](topics/04%20IR优化器/Topic04-PassManager-设计文档.md)

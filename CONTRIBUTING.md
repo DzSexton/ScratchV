@@ -52,7 +52,7 @@ pytest tests/ -v            # run all tests
 4. Register its factory in `create_optimization_registry()` in
    `scratchv/pass_manager.py`. Registration makes it available to `--passes`;
    adding it to a preset is a separate, explicit scheduling decision.
-   See [Topic 04 design](Topic04-PassManager-设计文档.md) for switches and functional passes.
+   See [Topic 04 design](docs/topics/04%20IR优化器/Topic04-PassManager-设计文档.md) for switches and functional passes.
 5. Add test cases (positive: should transform; negative: should not).
 6. Run `pytest` to verify.
 

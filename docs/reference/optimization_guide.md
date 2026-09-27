@@ -46,7 +46,7 @@ Assembly passes use a separate registry and retain the existing
 switches. `--disable-pass` only controls IR passes.
 
 The current design and historical Topic 04 documents are archived at the
-[repository root](../../Topic04-PassManager-设计文档.md).
+[Topic 04 documentation](../topics/04%20IR优化器/Topic04-PassManager-设计文档.md).
 
 ---
 

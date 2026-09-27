@@ -27,6 +27,21 @@ python -m pytest tests benchmarks -q --tb=short --ignore=tests/test_standalone_e
 
 相关集成子集（PM、优化器、ONNX benchmark、寄存器分配指标）共 122 passed。
 
+## Topic 04 CI（2026-09-27）
+
+在现有 `.github/workflows/ci.yml` 的 `test` 作业中加入专项检查，沿用 PR 到
+`main` 及现有主线分支 push 的触发规则。专项检查在 RISC-V 工具安装及全量测试前执行。
+
+```bash
+python -m pytest tests/test_pass_manager.py tests/test_pass_registry.py tests/test_optimizer.py tests/test_optimizer_advanced.py -v --tb=short --junit-xml=benchmark_reports/topic04_pass_manager.xml
+```
+
+本地同一测试集合结果：78 passed（Windows / Python 3.13.5）。线上使用已有
+Linux / Python 3.12 配置；本地结果不代表线上已通过。
+CI 通过 `pipefail` 保留测试失败状态，失败会阻止该作业通过。
+结果状态写入 Actions 摘要，JUnit XML 与详细日志归入现有 `test-reports` artifact，
+保留 30 天；测试失败时仍尝试上传报告。
+
 ## 静态检查
 
 以下 5 个核心文件的 mypy 检查通过：`scratchv/pass_manager.py`、

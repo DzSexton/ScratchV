@@ -83,6 +83,9 @@ class CompilerConfig:
     peephole_asm: bool = False
     const_merge: bool = False
     schedule: bool = False
+    schedule_strict: bool = False
+    schedule_report: bool = False
+    llvm_mca: str | None = None
     count_instr: bool = False
     cycle_stats: bool = False
     enable_forwarding: bool = True
@@ -173,6 +176,17 @@ class CompilerDriver:
         warnings: list[str] = []
         self._last_register_map = {}
         self._assembly_report = OptimizationReport("assembly", (), 0, 0.0)
+
+        if self.config.schedule and self.config.backend != "riscv":
+            return CompileResult(
+                success=False, errors=["--schedule requires the RISC-V backend"]
+            )
+        if (
+            self.config.schedule_strict or self.config.schedule_report
+        ) and not self.config.schedule:
+            return CompileResult(
+                success=False, errors=["Scheduling options require --schedule"]
+            )
 
         # Resolve output path
         if output_path is None:
@@ -280,12 +294,23 @@ class CompilerDriver:
             )
 
         # --- 5. Post-codegen passes ---
+        from scratchv.backend.llvm_mca import LLVMError
+        from scratchv.backend.schedule_semantics import ScheduleError
+
+        schedule_stats: dict[str, Any] = {}
         try:
-            asm_text = self._run_asm_passes(asm_text, warnings)
+            asm_text = self._run_asm_passes(asm_text, warnings, schedule_stats)
         except OptimizationPassError as exc:
             return CompileResult(
                 success=False,
-                errors=[f"Assembly pass error: {exc}"],
+                errors=[
+                    (
+                        f"Scheduling failed: {exc.cause}"
+                        if isinstance(exc.cause, (ScheduleError, LLVMError))
+                        else f"Assembly pass error: {exc}"
+                    )
+                ],
+                ir_dump=ir_dump,
                 stats={"assembly": self._pass_stats(exc.completed_report)},
                 warnings=warnings,
             )
@@ -325,6 +350,7 @@ class CompilerDriver:
                 "cycle_report": cycle_report,
                 "register_map": dict(self._last_register_map),
                 "assembly": self._pass_stats(self._assembly_report),
+                **schedule_stats,
             },
             warnings=warnings,
         )
@@ -513,7 +539,9 @@ class CompilerDriver:
 
     # ── Internal: post-codegen passes ───────────────────────────────────────
 
-    def _run_asm_passes(self, asm_text: str, warnings: list[str]) -> str:
+    def _run_asm_passes(
+        self, asm_text: str, warnings: list[str], stats: dict | None = None
+    ) -> str:
         """Run assembly-level passes (peephole, const-merge, beautify, etc.)."""
         from scratchv.assembly_passes import create_assembly_registry
 
@@ -527,7 +555,12 @@ class CompilerDriver:
         ):
             if enabled:
                 selected.append(name)
-        manager = create_assembly_registry().build(selected, pipeline_name="assembly")
+        manager = create_assembly_registry(
+            schedule_strict=self.config.schedule_strict,
+            schedule_report=self.config.schedule_report,
+            llvm_mca=self.config.llvm_mca,
+            stats=stats,
+        ).build(selected, pipeline_name="assembly")
         result = manager.run_pipeline(asm_text)
         self._assembly_report = result.report
         warnings.extend(result.warnings)

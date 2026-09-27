@@ -235,7 +235,9 @@ class TestCliAndDriver:
         registry.register(
             "beautify", lambda: AssemblyPass("beautify", lambda text: PassResult(None))
         )
-        monkeypatch.setattr(adapters, "create_assembly_registry", lambda: registry)
+        monkeypatch.setattr(
+            adapters, "create_assembly_registry", lambda **kwargs: registry
+        )
         output = tmp_path / "out.s"
         result = CompilerDriver(CompilerConfig(beautify_asm=True)).compile(
             "", str(output), "return 0"
@@ -243,3 +245,67 @@ class TestCliAndDriver:
         assert not result.success
         assert "beautify" in result.errors[0]
         assert not output.exists()
+
+    def test_scheduler_options_and_reports_survive_pm_adapter(
+        self, monkeypatch, tmp_path
+    ):
+        from types import SimpleNamespace
+
+        def schedule(text, config):
+            assert config.strict is True
+            assert config.llvm_mca == "custom-llvm-mca"
+            return SimpleNamespace(
+                asm_text=text + "# scheduled\n",
+                stats={"saved_cycles": 2},
+                diagnostics=[{"severity": "warning", "line": 1, "reason": "restored"}],
+                report=lambda: "Scheduling Report",
+            )
+
+        monkeypatch.setattr(
+            "scratchv.backend.inst_scheduler.schedule_assembly", schedule
+        )
+        driver = CompilerDriver(
+            CompilerConfig(
+                schedule=True,
+                schedule_strict=True,
+                schedule_report=True,
+                llvm_mca="custom-llvm-mca",
+            )
+        )
+        result = driver.compile("", str(tmp_path / "out.s"), "return 0")
+        assert result.success, result.errors
+        assert result.output_text.endswith("# scheduled\n")
+        assert result.stats["schedule"]["saved_cycles"] == 2
+        assert result.stats["schedule"]["report"] == "Scheduling Report"
+        assert "Schedule line 1: restored" in result.warnings
+        assert result.stats["assembly"]["passes"][0]["name"] == "schedule"
+        driver.config.schedule = driver.config.schedule_strict = (
+            driver.config.schedule_report
+        ) = False
+        second = driver.compile("", str(tmp_path / "out.s"), "return 0")
+        assert second.success
+        assert "schedule" not in second.stats
+        assert second.stats["assembly"]["passes"] == []
+
+    @pytest.mark.parametrize("error_type", ["ScheduleError", "LLVMError"])
+    def test_scheduler_failure_preserves_diagnostics_and_output(
+        self, monkeypatch, tmp_path, error_type
+    ):
+        from scratchv.backend.llvm_mca import LLVMError
+        from scratchv.backend.schedule_semantics import ScheduleError
+
+        def fail(text, config):
+            raise {"ScheduleError": ScheduleError, "LLVMError": LLVMError}[error_type](
+                "failure"
+            )
+
+        monkeypatch.setattr("scratchv.backend.inst_scheduler.schedule_assembly", fail)
+        output = tmp_path / "out.s"
+        output.write_text("existing output")
+        result = CompilerDriver(CompilerConfig(schedule=True)).compile(
+            "", str(output), "return 0"
+        )
+        assert not result.success
+        assert "Scheduling failed: failure" in result.errors[0]
+        assert result.stats["assembly"]["passes"] == []
+        assert output.read_text() == "existing output"

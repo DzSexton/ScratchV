@@ -56,18 +56,28 @@ def _const_merge(text: str) -> PassResult:
     return PassResult(output, stats.total_changes, warnings=warnings)
 
 
-def _schedule(text: str) -> PassResult:
-    from scratchv.backend.inst_scheduler import InstructionScheduler, parse_instructions
+def _schedule(
+    text: str,
+    *,
+    strict: bool = False,
+    report: bool = False,
+    llvm_mca: str | None = None,
+    stats: dict | None = None,
+) -> PassResult:
+    from scratchv.backend.inst_scheduler import ScheduleConfig, schedule_assembly
 
-    scheduler = InstructionScheduler()
-    instructions = parse_instructions(text)
-    scheduled = scheduler.schedule(scheduler.build_dag(instructions))
-    output = "\n".join(
-        f"  {instruction.opcode} " + ", ".join(instruction.operands)
-        for instruction in scheduled
-    )
-    # Existing scheduler has no edit count: report whether the text changed.
-    return PassResult(output, int(output != text))
+    result = schedule_assembly(text, ScheduleConfig(strict=strict, llvm_mca=llvm_mca))
+    if stats is not None:
+        stats["schedule"] = {**result.stats, "diagnostics": result.diagnostics}
+        if report:
+            stats["schedule"]["report"] = result.report()
+    warnings = [
+        f"Schedule line {item['line']}: {item['reason']}"
+        for item in result.diagnostics
+        if item["severity"] == "warning"
+    ]
+    # Report text changes separately from the scheduler's performance metrics.
+    return PassResult(result.asm_text, int(result.asm_text != text), warnings=warnings)
 
 
 def _beautify(text: str) -> PassResult:
@@ -89,13 +99,28 @@ def _count(text: str) -> PassResult:
     return PassResult(text, warnings=[f"Instruction count: {total}"])
 
 
-def create_assembly_registry() -> PassRegistry:
+def create_assembly_registry(
+    *,
+    schedule_strict: bool = False,
+    schedule_report: bool = False,
+    llvm_mca: str | None = None,
+    stats: dict | None = None,
+) -> PassRegistry:
     """Keep assembly names separate from the IR registry to prevent misrouting."""
     registry = PassRegistry()
     for name, action in (
         ("asm-peephole", _peephole),
         ("const-merge", _const_merge),
-        ("schedule", _schedule),
+        (
+            "schedule",
+            partial(
+                _schedule,
+                strict=schedule_strict,
+                report=schedule_report,
+                llvm_mca=llvm_mca,
+                stats=stats,
+            ),
+        ),
         ("beautify", _beautify),
         ("count-instr", _count),
     ):
